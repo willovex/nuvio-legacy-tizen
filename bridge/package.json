@@ -1,0 +1,13 @@
+{
+  "name": "nuvio-bridge",
+  "version": "1.0.0",
+  "description": "Bridge server: Nuvio providers + TMDB catalog for Tizen TV",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "cheerio-without-node-native": "^0.20.2",
+    "cheerio": "^1.0.0-rc.12"
+  }
+}

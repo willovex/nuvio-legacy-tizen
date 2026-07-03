@@ -1,0 +1,10 @@
+node_modules/
+bridge/providers/
+bridge/session.json
+bridge/.env
+*.wgt
+*.log
+.DS_Store
+author-signature.xml
+signature*.xml
+.manifest.tmp

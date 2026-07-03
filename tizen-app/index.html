@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=1920, height=1080, user-scalable=no">
+    <title>Nuvio TV</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Natywna powierzchnia wideo AVPlay (za warstwą HTML) -->
+    <object id="av-player" type="application/avplayer"></object>
+
+    <div id="app">
+        <!-- Pasek górny -->
+        <div id="topbar">
+            <div id="logo">NUVIO</div>
+            <div id="clock"></div>
+        </div>
+
+        <!-- Widok: logowanie do konta -->
+        <div id="view-login" class="view hidden">
+            <div id="login-box">
+                <div id="login-title">Zaloguj się do konta Nuvio</div>
+                <div id="login-steps">1. Wejdź na telefonie na adres poniżej &nbsp;•&nbsp; 2. Zaloguj się &nbsp;•&nbsp; 3. Zatwierdź kod</div>
+                <div id="login-qr"><img id="login-qr-img" alt=""></div>
+                <div id="login-url"></div>
+                <div id="login-code"></div>
+                <div id="login-status">Generuję kod...</div>
+            </div>
+        </div>
+
+        <!-- Widok: strona główna -->
+        <div id="view-home" class="view">
+            <div id="rows"></div>
+        </div>
+
+        <!-- Widok: szczegóły -->
+        <div id="view-detail" class="view hidden">
+            <div id="detail-backdrop"></div>
+            <div id="detail-content">
+                <div id="detail-title"></div>
+                <div id="detail-meta"></div>
+                <div id="detail-overview"></div>
+                <div id="detail-actions"></div>
+                <div id="detail-episodes"></div>
+            </div>
+        </div>
+
+        <!-- Widok: lista źródeł -->
+        <div id="view-streams" class="view hidden">
+            <div id="streams-title">Wybierz źródło</div>
+            <div id="streams-list"></div>
+        </div>
+
+        <!-- Nakładka odtwarzacza -->
+        <div id="view-player" class="view hidden">
+            <div id="player-info"></div>
+            <div id="player-bar">
+                <div id="player-progress"><div id="player-fill"></div></div>
+                <div id="player-time"></div>
+                <div id="player-hint">▲ Dźwięk / Napisy</div>
+            </div>
+            <div id="player-status"></div>
+            <div id="subtitle-text"></div>
+            <!-- Menu ścieżek: dźwięk + napisy -->
+            <div id="track-menu" class="hidden">
+                <div class="tm-col" id="tm-audio">
+                    <div class="tm-head">Dźwięk</div>
+                    <div class="tm-list" id="tm-audio-list"></div>
+                </div>
+                <div class="tm-col" id="tm-subs">
+                    <div class="tm-head">Napisy</div>
+                    <div class="tm-list" id="tm-subs-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spinner -->
+        <div id="loader" class="hidden"><div class="spin"></div><div id="loader-text"></div></div>
+
+        <!-- Wyszukiwarka -->
+        <div id="view-search" class="view hidden">
+            <div id="search-box"><span id="search-label">Szukaj: </span><span id="search-query"></span><span id="cursor">_</span></div>
+            <div id="search-results"></div>
+            <div id="search-hint">Wpisz literami pilota / klawiaturą. ENTER = szukaj.</div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
