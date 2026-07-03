@@ -1,5 +1,7 @@
 # Nuvio Lite for Legacy Tizen TVs
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/Willovex)
+
 A lightweight streaming client + companion bridge server that brings the
 **[Nuvio](https://github.com/NuvioMedia)** account experience (login, installed
 add-ons, watch history / *Continue Watching*, cross-device resume) to **old
@@ -208,3 +210,9 @@ how the bridge + app solve them:
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Wsparcie
+
+Jeśli ten projekt okazał się przydatny i chcesz postawić mi kawę — zapraszam:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/Willovex)
