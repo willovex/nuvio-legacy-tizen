@@ -12,6 +12,7 @@ function boot(){
  const document={getElementById:id=>elements[id]||(elements[id]=make()),createElement:make,documentElement:{clientWidth:1920,clientHeight:1080},addEventListener:(n,f)=>listeners[n]=f,querySelectorAll:()=>all.filter(e=>e.className.includes('focused')),querySelector:()=>null};
  function XHR(){this.open=(method,url)=>{this.url=url;};this.send=()=>requests.push(this);this.setRequestHeader=()=>{};}
  const sandbox={document,XMLHttpRequest:XHR,window:{innerWidth:1920,innerHeight:1080,addEventListener(){}},setInterval(){},clearInterval(){},setTimeout(){},clearTimeout(){},console,Date};
+ document.getElementById('topbar');
  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../tizen-app/js/app.js'),'utf8'),sandbox);sandbox.window.onload();
  function respond(route,data,status=200){const req=requests.find(r=>r.url.endsWith(route)&&!r.done);assert.ok(req,'App requested '+route);req.done=true;req.status=status;req.responseText=JSON.stringify(data);req.readyState=4;req.onreadystatechange();}
  return {elements,requests,respond,key:k=>listeners.keydown({keyCode:k})};
@@ -87,4 +88,14 @@ test('Back from details restores grid focus and Back from grid restores Home sel
  const content=app.elements.rows.childNodes[0].childNodes[1].childNodes[0];
  assert.match(content.childNodes[8].className,/focused/);
  app.key(10009);assert.equal(app.elements.rows.childNodes[1].childNodes[0].textContent,'Streaming Services');
+});
+
+test('the logo and clock hide throughout the player view and return after playback',()=>{
+ const app=boot();app.respond('/me/status',{loggedIn:true});
+ app.respond('/me/shelves',{rows:[{id:'movies',title:'Movies',items:[{id:'tt123',type:'movie',title:'Film'}]}]});app.respond('/me/continue',{items:[]});
+ assert.doesNotMatch(app.elements.topbar.className,/hidden/);
+ app.key(40);app.key(13);app.respond('/api/meta/movie/tt123',{id:123,type:'movie',title:'Film'});
+ app.key(13);app.respond('/api/streams/movie/123',{streams:[{url:'http://example.test/movie',provider:'Test'}]});app.key(13);
+ assert.match(app.elements.topbar.className,/hidden/);
+ app.key(10009);assert.doesNotMatch(app.elements.topbar.className,/hidden/);
 });

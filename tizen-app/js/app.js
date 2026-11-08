@@ -33,6 +33,7 @@ function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.cl
 function show(v) {
     var ids = ['login', 'home', 'detail', 'streams', 'player', 'search'];
     for (var i = 0; i < ids.length; i++) $('view-' + ids[i]).className = 'view' + (ids[i] === v ? '' : ' hidden');
+    $('topbar').className = v === 'player' ? 'hidden' : '';
     view = v;
 }
 function loader(on, txt) { $('loader').className = on ? '' : 'hidden'; $('loader-text').innerHTML = txt || 'Loading...'; }
