@@ -10,9 +10,11 @@ Continue Watching chooses the requested media type when an IMDb ID has both movi
 
 ## Measurements
 
-A controlled Home fixture with twenty preloaded 100-item catalogs plus Continue Watching produced 2,020 cards, 6,124 DOM nodes and 147 initial poster assignments before visible-row rendering. After the change it produced 220 cards, 724 nodes and 33 assignments, covering the partially visible third shelf too. Host Node VM mount timing was approximately 4 ms versus 1.3 ms; this is not a measurement of TV frame rate.
+An eager-rendering account-shelf fixture with twenty preloaded 100-item catalogs plus Continue Watching produced 2,020 cards, 6,124 DOM nodes and 147 initial poster assignments before visible-row rendering. After the change it produced 220 cards, 724 nodes and 33 assignments, covering the partially visible third shelf too. Host Node VM mount timing was approximately 4 ms versus 1.3 ms; this is not a measurement of TV frame rate.
 
-For the same ten live TMDB posters, response bodies fell from 1,335,177 bytes to 441,705 bytes (66.9% less transfer). Repeat bridge requests had median latency 49 ms before caching and 1 ms after. Network conditions and upstream caches affect these numbers. In a twenty-item Continue Watching check, initial metadata load took about 2.50 seconds and a cached repeat 0.58 seconds; all title/poster fields resolved after typed lookup and add-on fallback.
+The DOM comparison is a controlled account-shelf fixture, not a benchmark of the unmodified upstream six-row Home.
+
+For the same ten live TMDB posters supplied by account add-on catalogs, response bodies fell from 1,335,177 bytes to 441,705 bytes (66.9% less transfer). Repeat bridge requests had median latency 49 ms before caching and 1 ms after. Network conditions and upstream caches affect these numbers. In a twenty-item Continue Watching check, initial metadata load took about 2.50 seconds and a cached repeat 0.58 seconds; all title/poster fields resolved after typed lookup and add-on fallback.
 
 ## Validation and limits
 
