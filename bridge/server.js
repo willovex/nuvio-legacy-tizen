@@ -11,6 +11,16 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
+const { buildShelves, loadShelf } = require('./shelves.cjs');
+const { proxyPosterURL, createPosterCache } = require('./posters.cjs');
+const posterCache = createPosterCache(url => httpGet(url));
+const { chooseImdbMatch, parseTmdbId, createJsonCache, createCredentialReader } = require('./metadata.cjs');
+const tmdbCache = createJsonCache(async key => {
+  const request = JSON.parse(key);
+  const response = await httpGet(request.url, { headers: request.headers });
+  if (response.status !== 200) throw new Error('Metadata service HTTP ' + response.status);
+  return JSON.parse(response.body.toString('utf8'));
+});
 
 // ---------- Konfiguracja ----------
 const PORT = process.env.PORT || 7070;
@@ -35,7 +45,11 @@ function httpGet(u, opts) {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         const next = new URL(res.headers.location, u).toString();
         res.resume();
-        return resolve(httpGet(next, opts));
+        const nextOptions = { ...opts, headers: { ...(opts.headers || {}) } };
+        if (new URL(next).origin !== new URL(u).origin) {
+          for (const header of Object.keys(nextOptions.headers)) if (/^(authorization|cookie|x-api-key)$/i.test(header)) delete nextOptions.headers[header];
+        }
+        return resolve(httpGet(next, nextOptions));
       }
       const chunks = [];
       res.on('data', c => chunks.push(c));
@@ -46,7 +60,18 @@ function httpGet(u, opts) {
   });
 }
 async function getJSON(u, headers) {
+  const url = new URL(u);
+  if (url.hostname === 'api.themoviedb.org') {
+    const accountKey = await credentials.get('tmdb').catch(() => null);
+    const authHeaders = { ...(headers || {}) };
+    if (accountKey) {
+      if (accountKey.startsWith('eyJ')) { url.searchParams.delete('api_key'); authHeaders.Authorization = 'Bearer ' + accountKey; }
+      else url.searchParams.set('api_key', accountKey);
+    }
+    return tmdbCache.get(JSON.stringify({ url: url.href, headers: authHeaders }));
+  }
   const r = await httpGet(u, { headers });
+  if (r.status !== 200) throw new Error('JSON service HTTP ' + r.status);
   return JSON.parse(r.body.toString('utf8'));
 }
 function withTimeout(p, ms, tag) {
@@ -63,6 +88,12 @@ const SESSION_FILE = path.join(__dirname, 'session.json');
 
 let ACC = { access: null, refresh: null, profileId: null, user: null };
 try { if (fs.existsSync(SESSION_FILE)) ACC = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8')); } catch (e) {}
+const credentials = createCredentialReader(() => ACC.access ? jwtSub() + ':' + (ACC.profileIndex || 1) : null, async () => {
+  const token = await userToken();
+  if (!token) return [];
+  const response = await supaReq('POST', '/rest/v1/rpc/sync_pull_provider_credentials', { p_profile_id: ACC.profileIndex || 1 }, token);
+  return response.status === 200 && Array.isArray(response.json) ? response.json : [];
+});
 function saveSession() { try { fs.writeFileSync(SESSION_FILE, JSON.stringify(ACC)); } catch (e) {} }
 
 // helper: request JSON z ciałem (POST/GET) do Supabase
@@ -200,7 +231,7 @@ async function getContinue() {
     const pct = durMs > 0 ? Math.round(posMs / durMs * 100) : 0;
     if (pct >= 95) continue; // obejrzane
     items.push({
-      contentId: cid, type: ctype === 'tv' || ctype === 'series' ? 'series' : 'movie',
+      contentId: cid, tmdbId: cid, type: ctype === 'tv' || ctype === 'series' ? 'series' : 'movie',
       season: row.season != null ? Number(row.season) : null,
       episode: row.episode != null ? Number(row.episode) : null,
       positionMs: posMs, durationMs: durMs, pct: pct,
@@ -215,14 +246,20 @@ async function getContinue() {
       let tmdbId = it.contentId, mt = it.type === 'series' ? 'tv' : 'movie';
       if (String(it.contentId).indexOf('tt') === 0) {
         const f = await getJSON(`${TMDB}/find/${it.contentId}?api_key=${TMDB_KEY}&external_source=imdb_id&language=${LANG}`);
-        const hit = (f.movie_results && f.movie_results[0]) || (f.tv_results && f.tv_results[0]);
-        if (hit) { tmdbId = hit.id; mt = f.tv_results && f.tv_results[0] ? 'tv' : 'movie'; }
-      } else if (String(it.contentId).indexOf('tmdb:') === 0) { tmdbId = it.contentId.split(':')[1]; }
+        const hit = chooseImdbMatch(f, it.type);
+        if (hit) { tmdbId = hit.id; mt = hit.type; }
+      } else { tmdbId = parseTmdbId(it.contentId); }
+      if (!tmdbId) throw new Error('Provider-specific title');
       it.tmdbId = tmdbId; it.type = mt === 'tv' ? 'series' : 'movie';
       const d = await getJSON(`${TMDB}/${mt}/${tmdbId}?api_key=${TMDB_KEY}&language=${LANG}`);
       it.title = d.title || d.name || it.contentId;
+      it.rating = d.vote_average ? Math.round(d.vote_average * 10) / 10 : null;
       it.poster = d.poster_path ? IMG + '/w342' + d.poster_path : '';
     } catch (e) { it.title = it.contentId; it.poster = ''; }
+    if (!it.poster) {
+      const fallback = await getAddonMeta(it.type, it.contentId).catch(() => null);
+      if (fallback) { it.title = fallback.name || fallback.title || it.title; it.poster = fallback.poster || ''; }
+    }
   }));
   return top;
 }
@@ -323,19 +360,37 @@ function manifestUrl(url) {
   return url.replace(/\/$/, '') + '/manifest.json';
 }
 async function getUserAddons() {
-  if (Date.now() - ADDONS_CACHE.ts < 300000 && ADDONS_CACHE.list.length) return ADDONS_CACHE.list;
+  const scope = jwtSub() + ':' + (ACC.profileIndex || 1);
+  if (ADDONS_CACHE.scope === scope && Date.now() - ADDONS_CACHE.ts < 300000 && ADDONS_CACHE.list.length) return ADDONS_CACHE.list;
   const raw = await getUserPlugins();
-  const list = [];
-  await Promise.all(raw.filter(a => a.enabled).map(async a => {
+  const results = await Promise.all(raw.filter(a => a.enabled).map(async a => {
     try {
       const m = await getJSON(manifestUrl(a.url));
       const resources = (m.resources || []).map(r => typeof r === 'string' ? r : r.name);
-      list.push({ name: a.name, base: addonBase(a.url), resources, types: m.types || [] });
-    } catch (e) { console.log('[addon] manifest fail', a.name, e.message); }
+      return { id: m.id, name: a.name, base: addonBase(a.url), resources, types: m.types || [], catalogs: m.catalogs || [], idPrefixes: m.idPrefixes || [] };
+    } catch (_) { return null; }
   }));
-  if (list.length) ADDONS_CACHE = { ts: Date.now(), list };
+  const list = results.filter(Boolean);
+  if (list.length) ADDONS_CACHE = { scope, ts: Date.now(), list };
   return list;
 }
+const addonMetaCache = createJsonCache(async key => {
+  const response = await httpGet(key, { timeout: 5000 });
+  if (response.status !== 200) throw new Error('Add-on metadata unavailable');
+  const body = JSON.parse(response.body.toString('utf8'));
+  if (!body.meta) throw new Error('Add-on has no metadata');
+  return body.meta;
+});
+async function getAddonMeta(type, id) {
+  const addons = (await getUserAddons()).filter(a => a.resources.includes('meta') && (!a.types.length || a.types.includes(type)) && (!a.idPrefixes.length || a.idPrefixes.some(prefix => String(id).startsWith(prefix))));
+  addons.sort((a, b) => Number(!!b.idPrefixes.length) - Number(!!a.idPrefixes.length));
+  for (const addon of addons.slice(0, 2)) {
+    try { return await addonMetaCache.get(addon.base + '/meta/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json'); }
+    catch (_) { /* Try the next configured metadata source. */ }
+  }
+  return null;
+}
+
 async function tmdbToImdb(tmdbId, mt) {
   try { const j = await getJSON(`${TMDB}/${mt}/${tmdbId}/external_ids?api_key=${TMDB_KEY}`); return j.imdb_id || null; } catch (e) { return null; }
 }
@@ -502,6 +557,61 @@ function mapItem(x, forcedType) {
   };
 }
 
+// Account shelf definitions stay on the bridge; add-on credential URLs never reach the TV.
+let HOME_SHELVES = null;
+let HOME_SHELVES_PENDING = null;
+async function getHomeShelves() {
+  const tok = await userToken();
+  if (!tok) throw new Error('Please sign in again.');
+  if (ACC.profileIndex == null) await resolveProfile();
+  const scope = jwtSub() + ':' + ACC.profileIndex;
+  if (HOME_SHELVES && HOME_SHELVES.scope === scope && HOME_SHELVES.expires > Date.now()) return HOME_SHELVES;
+  if (HOME_SHELVES_PENDING && HOME_SHELVES_PENDING.scope === scope) return HOME_SHELVES_PENDING.promise;
+  const promise = (async () => {
+    const [addons, settingsResponse, collectionsResponse] = await Promise.all([
+      getUserAddons(),
+      supaReq('POST', '/rest/v1/rpc/sync_pull_home_catalog_settings', { p_profile_id: ACC.profileIndex, p_platform: 'home_catalog_shared' }, tok),
+      supaReq('POST', '/rest/v1/rpc/sync_pull_collections', { p_profile_id: ACC.profileIndex }, tok)
+    ]);
+    if (settingsResponse.status >= 300 || collectionsResponse.status >= 300) throw new Error('Account shelves could not be loaded.');
+    const first = value => Array.isArray(value) ? value[0] : value;
+    const settings = first(settingsResponse.json)?.settings_json || {};
+    let collections = first(collectionsResponse.json)?.collections_json || [];
+    if (typeof collections === 'string') collections = JSON.parse(collections);
+    if (!Array.isArray(collections)) collections = collections.collections || [];
+    const result = buildShelves(addons, settings, collections);
+    HOME_SHELVES = { ...result, scope, expires: Date.now() + 300000, entries: new Map([...result.rows, ...result.folders].map(row => [row.id, row])) };
+    return HOME_SHELVES;
+  })();
+  HOME_SHELVES_PENDING = { scope, promise };
+  try { return await promise; } finally { if (HOME_SHELVES_PENDING?.promise === promise) HOME_SHELVES_PENDING = null; }
+}
+function shelfItemForTV(item, host) {
+  return { ...item, poster: proxyPosterURL(item.poster || '', host) };
+}
+async function getShelfItems(id, host) {
+  const home = await getHomeShelves(), row = home.entries.get(id);
+  if (!row) throw new Error('Shelf no longer exists. Reopen Nuvio to refresh.');
+  if (!row.items) row.items = await loadShelf(row, async url => {
+    const response = await httpGet(url);
+    if (response.status !== 200) throw new Error('Catalog source unavailable.');
+    return JSON.parse(response.body.toString('utf8'));
+  }, { tmdb: TMDB, key: TMDB_KEY, language: LANG });
+  return row.items.map(item => shelfItemForTV(item, host));
+}
+async function resolveCatalogTmdbId(id, type) {
+  const value = decodeURIComponent(id);
+  if (/^tt\d+$/.test(value)) {
+    const result = await getJSON(`${TMDB}/find/${value}?api_key=${TMDB_KEY}&external_source=imdb_id&language=${LANG}`);
+    const hit = (type === 'tv' ? result.tv_results : result.movie_results)?.[0];
+    if (!hit) throw new Error('Title metadata could not be found.');
+    return hit.id;
+  }
+  const match = value.match(/^(?:tmdb:(?:(?:movie|tv|series):)?)?(\d+)$/);
+  if (!match) throw new Error('This catalog uses an unsupported title identifier.');
+  return match[1];
+}
+
 // ---------- Router ----------
 const CATEGORIES = {
   'trending-movie': `${TMDB}/trending/movie/week`,
@@ -537,6 +647,8 @@ async function handleApi(req, res, u) {
   // /api/reload  -> przeładuj providery
   if (seg[0] === 'reload') { await loadProviders(); return send(res, 200, { ok: true, providers: PROVIDERS.length }); }
 
+  if (seg[0] === 'shelf') return send(res, 200, { items: await getShelfItems(seg[1], req.headers.host) });
+
   // /api/catalog/:category
   if (seg[0] === 'catalog') {
     const cat = seg[1];
@@ -558,7 +670,7 @@ async function handleApi(req, res, u) {
   // /api/meta/:type/:id
   if (seg[0] === 'meta') {
     const type = seg[1] === 'series' ? 'tv' : 'movie';
-    const id = seg[2];
+    const id = await resolveCatalogTmdbId(seg[2], type);
     const j = await getJSON(`${TMDB}/${type}/${id}?api_key=${TMDB_KEY}&language=${LANG}`);
     const meta = {
       id: j.id, type: seg[1], title: j.title || j.name || '',
@@ -746,13 +858,16 @@ function __route(req, res) {
   if (u.pathname === '/img') {
     const tgt = u.searchParams.get('u');
     if (!tgt) return send(res, 400, 'brak u');
-    httpGet(tgt).then(r => {
-      res.writeHead(r.status, {
+    const tile = u.searchParams.get('poster') === '1';
+    (tile ? posterCache.get(tgt) : httpGet(tgt)).then(r => {
+      const headers = {
         'Content-Type': r.headers['content-type'] || 'image/png',
         'Access-Control-Allow-Origin': '*'
-      });
+      };
+      if (tile && r.status === 200 && /^image\//i.test(r.headers['content-type'] || '')) { headers['Cache-Control'] = 'private, max-age=3600'; headers['X-Nuvio-Poster-Cache'] = r.cacheStatus; }
+      res.writeHead(r.status, headers);
       res.end(r.body);
-    }).catch(e => send(res, 502, 'img: ' + e.message));
+    }).catch(() => send(res, 502, 'Image unavailable.'));
     return;
   }
   // ---- Konto Nuvio: /me/* ----
@@ -764,7 +879,8 @@ function __route(req, res) {
     if (p === 'login/start') { return loginStart().then(done).catch(fail); }
     if (p === 'login/poll') { return loginPoll().then(done).catch(fail); }
     if (p === 'logout') { ACC = { access: null, refresh: null, profileId: null }; saveSession(); return done({ ok: true }); }
-    if (p === 'continue') { return getContinue().then(list => done({ items: list })).catch(fail); }
+    if (p === 'shelves') { return getHomeShelves().then(home => done({ rows: home.rows.map(row => ({ id: row.id, title: row.title, items: row.items && row.items.map(item => shelfItemForTV(item, reqHost)) })) })).catch(fail); }
+    if (p === 'continue') { return getContinue().then(list => done({ items: list.map(item => shelfItemForTV(item, reqHost)) })).catch(fail); }
     if (p === 'delprogress') {
       return (async () => {
         const tok = await userToken(); if (ACC.profileIndex == null) await resolveProfile();

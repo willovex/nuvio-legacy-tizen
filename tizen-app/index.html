@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=1920, height=1080, user-scalable=no">
@@ -20,12 +20,12 @@
         <!-- Widok: logowanie do konta -->
         <div id="view-login" class="view hidden">
             <div id="login-box">
-                <div id="login-title">Zaloguj się do konta Nuvio</div>
-                <div id="login-steps">1. Wejdź na telefonie na adres poniżej &nbsp;•&nbsp; 2. Zaloguj się &nbsp;•&nbsp; 3. Zatwierdź kod</div>
+                <div id="login-title">Sign in to your Nuvio account</div>
+                <div id="login-steps">1. Open the address below on your phone &nbsp; / &nbsp; 2. Sign in &nbsp; / &nbsp; 3. Confirm the code</div>
                 <div id="login-qr"><img id="login-qr-img" alt=""></div>
                 <div id="login-url"></div>
                 <div id="login-code"></div>
-                <div id="login-status">Generuję kod...</div>
+                <div id="login-status">Generating code...</div>
             </div>
         </div>
 
@@ -48,7 +48,7 @@
 
         <!-- Widok: lista źródeł -->
         <div id="view-streams" class="view hidden">
-            <div id="streams-title">Wybierz źródło</div>
+            <div id="streams-title">Choose a source</div>
             <div id="streams-list"></div>
         </div>
 
@@ -58,18 +58,18 @@
             <div id="player-bar">
                 <div id="player-progress"><div id="player-fill"></div></div>
                 <div id="player-time"></div>
-                <div id="player-hint">▲ Dźwięk / Napisy</div>
+                <div id="player-hint">Up: Audio / Subtitles</div>
             </div>
             <div id="player-status"></div>
             <div id="subtitle-text"></div>
             <!-- Menu ścieżek: dźwięk + napisy -->
             <div id="track-menu" class="hidden">
                 <div class="tm-col" id="tm-audio">
-                    <div class="tm-head">Dźwięk</div>
+                    <div class="tm-head">Audio</div>
                     <div class="tm-list" id="tm-audio-list"></div>
                 </div>
                 <div class="tm-col" id="tm-subs">
-                    <div class="tm-head">Napisy</div>
+                    <div class="tm-head">Subtitles</div>
                     <div class="tm-list" id="tm-subs-list"></div>
                 </div>
             </div>
@@ -80,9 +80,9 @@
 
         <!-- Wyszukiwarka -->
         <div id="view-search" class="view hidden">
-            <div id="search-box"><span id="search-label">Szukaj: </span><span id="search-query"></span><span id="cursor">_</span></div>
+            <div id="search-box"><span id="search-label">Search: </span><span id="search-query"></span><span id="cursor">_</span></div>
             <div id="search-results"></div>
-            <div id="search-hint">Wpisz literami pilota / klawiaturą. ENTER = szukaj.</div>
+            <div id="search-hint">Type using your remote or keyboard. Press ENTER to search.</div>
         </div>
     </div>
 

@@ -28,7 +28,7 @@ html, body {
 #rows { padding: 0 0 0 60px; }
 .row { margin-bottom: 34px; }
 .row-title { font-size: 30px; margin-bottom: 14px; color: #cfd6e4; }
-.row-track { white-space: nowrap; }
+.row-track { white-space: nowrap; min-height: 330px; }
 .card {
     display: inline-block; width: 220px; height: 330px; margin-right: 22px;
     background: #1a1e28; border-radius: 10px; overflow: hidden; position: relative;
@@ -160,3 +160,10 @@ html, body {
 @keyframes bl { 50% { opacity: 0; } }
 #search-results { white-space: nowrap; }
 #search-hint { position: absolute; bottom: 60px; left: 90px; font-size: 24px; color: #67708a; }
+
+.row-message { color: #9aa3b2; font-size: 28px; padding: 30px 0; }
+
+/* Folder browsing uses fixed columns supported by legacy WebKit. */
+.folder-grid .row-track { width: 1800px; height: 900px; min-height: 0; padding: 12px; overflow: hidden; white-space: normal; }
+.folder-grid .grid-content { width: 1776px; }
+.folder-grid .card { width: 200px; height: 300px; margin-right: 22px; margin-bottom: 28px; }
