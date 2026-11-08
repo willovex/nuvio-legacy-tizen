@@ -42,3 +42,9 @@ only intended client. CORS is open.
 | `/px?u=<https-url>`      | Generic HTTPS proxy for anything the TV can't reach directly.      |
 | `/img?u=<https-url>`     | Image proxy (posters, QR, subtitle files).                        |
 | `/api/proxy?u=&h=`       | Video stream proxy — follows redirects server-side, supports `Range`, injects add-on headers. |
+
+## Account shelves
+
+`GET /me/shelves` returns ordered `{ rows: [{ id, title, items? }] }` definitions for the active profile. Collection rows contain folder items (`type: "folder"`); ordinary catalog rows load on demand. Disabled account rows and required-parameter/search-only catalogs are excluded. IDs are opaque; source configuration URLs and account credential values are not returned.
+
+`GET /api/shelf/:id` returns `{ items }` for an enabled catalog or collection folder. Movie/show items retain ratings and have bridge-proxied poster URLs. A source failure is retryable, and a working source can keep a multi-source folder usable when another fails.

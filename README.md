@@ -63,7 +63,9 @@ responsive.
   phone and other devices**.
 - **Audio & subtitle track switching** in the player, including **online
   subtitles** pulled from your OpenSubtitles add-on.
-- **Catalogs** (Trending / Popular / Top rated) from TMDB.
+- **Account shelves and collections** with saved order, custom titles, and hidden-row preferences. Collection folders open as an eight-column poster grid with remote navigation. TMDB catalogs remain the fallback when no account rows exist.
+- **Artwork and rating preservation**, with visible-row rendering and smaller cached posters for older TV engines.
+- **Metadata caching** with coalesced lookups and optional account-synced TMDB credentials; environment configuration remains supported.
 - **Full-screen playback** with auto-hiding controls, resume, and progress sync.
 - Works around the old engine's limits: **all HTTPS is proxied** through the
   bridge (the 2015 TLS stack can't reach many modern hosts), streams are
@@ -156,6 +158,14 @@ On first run the TV shows a QR code — scan it, log into your Nuvio account, an
 your profile, add-ons and history sync over.
 
 ---
+
+## Tests and validation
+
+Run `npm test` from `bridge/`. Tests use Node's built-in test runner and controlled inputs; they do not need account keys, a TV, or network access.
+
+The browsing changes were installed and exercised on a 2017 Samsung running Tizen 3.0. The TV code remains ES5 and uses inline-block layout rather than modern CSS Grid. Physical testing on Tizen 2.3 is still needed. See [performance and compatibility notes](docs/PERFORMANCE.md).
+
+Account-synced TMDB credentials are read by the bridge through `sync_pull_provider_credentials`; key values stay on the bridge. If no account credential is available, `TMDB_KEY` is used. Other integrations from full Nuvio, including direct MDBList ratings and AnimeSkip controls, are not implemented by this client. Debrid credentials configured inside add-ons continue to be handled by those add-ons.
 
 ## How it works (the interesting bits)
 
